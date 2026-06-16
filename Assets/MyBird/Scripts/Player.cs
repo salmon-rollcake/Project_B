@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace MyBird
 {
@@ -30,8 +31,11 @@ namespace MyBird
         // ========== 내부 변수 ==========
         private Rigidbody2D rb;
         private float targetRotationZ;
-        private bool isJumping;
         private PlayerState currentState = PlayerState.Ready;  // 초기 상태: Ready
+        private bool canControl = true;                        // 플레이어 조작 가능 여부
+
+        public GameObject readyUI;
+        public GameObject gameoverUI;
 
         private void Start()
         {
@@ -54,6 +58,10 @@ namespace MyBird
         /// </summary>
         private void HandleInput()
         {
+            // 조작이 불가능하면 입력 처리 안 함
+            if (!canControl)
+                return;
+
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
             {
                 // Ready 상태에서 입력받으면 Playing 상태로 전환
@@ -85,6 +93,13 @@ namespace MyBird
         /// </summary>
         private void HandleMovement()
         {
+            // 조작이 불가능하면 이동 중지
+            if (!canControl)
+            {
+                rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+                return;
+            }
+
             if (currentState == PlayerState.Playing)
             {
                 rb.linearVelocity = new Vector2(moveSpeed, rb.linearVelocity.y);
@@ -97,7 +112,6 @@ namespace MyBird
         private void Jump()
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            isJumping = true;
         }
 
         /// <summary>
@@ -141,6 +155,38 @@ namespace MyBird
                 transform.rotation.eulerAngles.y,
                 currentZ
             );
+        }
+
+        /// <summary>
+        /// 충돌 감지: Check 포인트와 Enemy 충돌체를 감지합니다.
+        /// </summary>
+        private void OnTriggerEnter2D(Collider2D collision)
+        {
+            // GameManager 인스턴스가 있으면 충돌 이벤트 전달
+            if (GameManager.Instance != null)
+            {
+                if (collision.CompareTag("Check"))
+                {
+                    GameManager.Instance.OnPlayerCheckCollision(collision.gameObject);
+                }
+                else if (collision.CompareTag("Enemy"))
+                {
+                    GameManager.Instance.OnPlayerEnemyCollision();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 게임 오버 상태로 플레이어를 설정합니다.
+        /// 플레이어 조작을 불가능하게 하고 모든 이동 속도를 0으로 설정합니다.
+        /// </summary>
+        public void OnGameOver()
+        {
+            // 플레이어 조작 불가능 설정
+            canControl = false;
+
+            // 모든 이동 속도를 0으로 설정 (수평, 수직 모두)
+            rb.linearVelocity = Vector2.zero;
         }
     }
 }
